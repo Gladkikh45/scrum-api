@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"net/http"
 	"os"
-
-	// "os/user"
-
-	"github.com/jackc/pgx/v5"
-	// _ "github.com/jackc/pgx/v5"
+	"time"
+	//"os/user"
+	//"github.com/jackc/pgx/v5"
+	//_ "github.com/jackc/pgx/v5"
 )
 
 type GetUsersResponse struct {
-	Count int64    `json:"count"` // Зачем нужны эти оранжевые слова?
+	Count int64    `json:"count"` // Зачем нужны эти оранжевые(зелёные) слова?
 	Users []DbUser `json:"users"`
 }
 
@@ -24,8 +25,10 @@ type GetBoardsResponse struct {
 }
 
 type DbBoard struct {
-	Title   string   `json:"title,omitempty"`
-	Columns []string `json:"columns,omitempty"`
+	Id        *string    `json:"id,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	Title     *string    `json:"title,omitempty"`
+	Columns   []string   `json:"columns,omitempty"`
 }
 
 type DbUser struct {
@@ -46,12 +49,29 @@ func Connection() (*pgx.Conn, error) {
 	return conn, err
 }
 
+func CreqteConn() (*pgxpool.Pool, error) {
+	connStr := "postgres://postgres:45863@localhost:5432/postgres"
+	pollConf, err := pgxpool.ParseConfig(connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	pollConf.LazyConnect = true
+
+	pool, err := pgxpool.ConnectConfig(context.Background(), pollConf)
+	if err != nil {
+		return nil, err
+	}
+
+	return pool, nil
+}
+
 const sqlCreateReport = `
     INSERT INTO main.boards
         (title, columns)
     VALUES
     ($1, $2)
-    RETURNING id
+--     RETURNING id
 `
 
 type CreateBoardRequest struct {
@@ -60,9 +80,8 @@ type CreateBoardRequest struct {
 }
 
 func СreateBoard(w http.ResponseWriter, r *http.Request) {
-	Connection()
-	conn, err := Connection()
-	defer conn.Close(context.Background())
+	conn, err := CreqteConn()
+	//defer conn.Close(context.Background())
 
 	decoder := json.NewDecoder(r.Body)
 	var message CreateBoardRequest
@@ -74,9 +93,14 @@ func СreateBoard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//conn.
+	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
+	if err != nil {
+		return
+	}
+	defer tx.Rollback(context.TODO())
 
-	// fmt.Scan(title)
-	rows, err := conn.Query(context.Background(), sqlCreateReport, message.Title, message.Columns)
+	fmt.Println(message.Title, message.Columns)
+	rows, err := tx.Query(context.Background(), sqlCreateReport, message.Title, message.Columns)
 	if err != nil {
 		JsonResponse(w, 500, err.Error())
 		return
@@ -93,7 +117,7 @@ func СreateBoard(w http.ResponseWriter, r *http.Request) {
 			JsonResponse(w, 500, err.Error())
 		}
 	}
-
+	_ = tx.Commit(context.Background())
 	JsonResponse(w, 200, board)
 }
 
@@ -105,7 +129,7 @@ func BoardList(w http.ResponseWriter, r *http.Request) {
 	Connection()
 	conn, err := Connection()
 
-	rows, err := conn.Query(context.Background(), "SELECT title, columns FROM main.boards")
+	rows, err := conn.Query(context.Background(), "SELECT id, title, columns FROM main.boards")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
@@ -115,6 +139,8 @@ func BoardList(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		board := DbBoard{}
 		err := rows.Scan(
+			&board.Id,
+			//&board.CreatedAt,
 			&board.Title,
 			&board.Columns,
 		)
@@ -153,19 +179,19 @@ func DeleteBoard(w http.ResponseWriter, r *http.Request) {
 	JsonResponse(w, 200, rows)
 }
 
-func Authentication(login, secret string) {
-	Connection()
-	conn, err := Connection()
-
-	var name string
-	data := conn.QueryRow(context.Background(), "select user_name from users_table where user_name=$1", login).Scan(&name)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println(data)
-	defer conn.Close(context.Background())
-}
+//func Authentication(login, secret string) {
+//	Connection()
+//	conn, err := Connection()
+//
+//	var name string
+//	data := conn.QueryRow(context.Background(), "select user_name from  where user_name=$1", login).Scan(&name)
+//	if err != nil {
+//		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+//		os.Exit(1)
+//	}
+//	fmt.Println(data)
+//	defer conn.Close(context.Background())
+//}
 
 func UsersList(w http.ResponseWriter, r *http.Request) {
 	Connection()
@@ -216,6 +242,18 @@ func JsonResponse(w http.ResponseWriter, code int, resp any) {
 
 	w.WriteHeader(code)
 	_, _ = w.Write(response)
+}
+
+func CreateCard(w http.ResponseWriter, r *http.Request) {
+	Connection()
+	conn, err := Connection()
+	defer conn.Close(context.Background())
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		fmt.Println("Error", err.Error())
+		os.Exit(1)
+	}
 }
 
 // SELECT * FROM public.users_table
