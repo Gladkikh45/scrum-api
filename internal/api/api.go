@@ -66,12 +66,32 @@ func CreqteConn() (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+//func New(config *configuration.Db) (*Client, error) {
+//	pollConf, err := pgxpool.ParseConfig(config.ConnStr)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	pollConf.LazyConnect = true
+//
+//	pool, err := pgxpool.ConnectConfig(context.Background(), pollConf)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	c := &Client{
+//		driver: pool,
+//	}
+//
+//	return c, nil
+//}
+
 const sqlCreateReport = `
     INSERT INTO main.boards
         (title, columns)
     VALUES
     ($1, $2)
---     RETURNING id
+    RETURNING id
 `
 
 type CreateBoardRequest struct {
@@ -158,29 +178,50 @@ func BoardList(w http.ResponseWriter, r *http.Request) {
 
 const sqlDeleteReport = `
     delete from main.boards
-    where title = $1
+    where id = $1
 `
 
+type DeleteBoardRequest struct {
+	Id *string `json:"id,omitempty"`
+}
+
 func DeleteBoard(w http.ResponseWriter, r *http.Request) {
-	Connection()
 	conn, err := Connection()
 
 	defer conn.Close(context.Background())
 
-	title := r.URL.Query().Get("title")
+	decoder := json.NewDecoder(r.Body)
+	var message DeleteBoardRequest
 
-	rows, err := conn.Query(context.Background(), sqlDeleteReport, title) // Как отличать когда надо conn.Query, а когда conn.QueryRow?
+	err = decoder.Decode(&message)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		fmt.Println(rows)
-		os.Exit(1)
+		JsonResponse(w, 400, err.Error())
+		return
 	}
 
+	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
+	if err != nil {
+		JsonResponse(w, 400, err.Error())
+		return
+	}
+	defer tx.Rollback(context.TODO())
+
+	rows, err := tx.Query(context.Background(), sqlDeleteReport, message.Id)
+	if err != nil {
+		JsonResponse(w, 500, err.Error())
+		return
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		JsonResponse(w, 400, err.Error())
+		return
+	}
 	JsonResponse(w, 200, rows)
 }
 
 //func Authentication(login, secret string) {
-//	Connection()
+//	Connection()2
 //	conn, err := Connection()
 //
 //	var name string
