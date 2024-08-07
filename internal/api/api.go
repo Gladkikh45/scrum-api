@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	//"os/user"
 	//"github.com/jackc/pgx/v5"
 	//_ "github.com/jackc/pgx/v5"
@@ -40,7 +41,8 @@ type DbUser struct {
 
 func Connection() (*pgx.Conn, error) {
 	//urlExample := "postgres://postgres:45863@localhost:5432/test_db"
-	urlExample := "postgres://postgres:45863@localhost:5432/postgres"
+	//urlExample := "postgres://postgres:45863@localhost:5432/postgres"
+	urlExample := "postgres://ngfw@localhost:5432/postgres"
 	conn, err := pgx.Connect(context.Background(), urlExample)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -50,7 +52,7 @@ func Connection() (*pgx.Conn, error) {
 }
 
 func CreqteConn() (*pgxpool.Pool, error) {
-	connStr := "postgres://postgres:45863@localhost:5432/postgres"
+	connStr := "postgres://postgres@localhost:5432/ngfw"
 	pollConf, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		return nil, err
@@ -186,9 +188,10 @@ type DeleteBoardRequest struct {
 }
 
 func DeleteBoard(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	conn, err := Connection()
 
-	defer conn.Close(context.Background())
+	defer conn.Close(ctx)
 
 	decoder := json.NewDecoder(r.Body)
 	var message DeleteBoardRequest
@@ -204,19 +207,28 @@ func DeleteBoard(w http.ResponseWriter, r *http.Request) {
 		JsonResponse(w, 400, err.Error())
 		return
 	}
-	defer tx.Rollback(context.TODO())
 
-	rows, err := tx.Query(context.Background(), sqlDeleteReport, message.Id)
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(ctx, sqlDeleteReport, message.Id)
 	if err != nil {
 		JsonResponse(w, 500, err.Error())
 		return
 	}
 
-	err = tx.Commit(context.Background())
+	rows.Next()
+
+	if !rows.CommandTag().Delete() {
+		JsonResponse(w, 400, "object does not have delete statement")
+		return
+	}
+
+	err = tx.Commit(ctx)
 	if err != nil {
 		JsonResponse(w, 400, err.Error())
 		return
 	}
+
 	JsonResponse(w, 200, rows)
 }
 
