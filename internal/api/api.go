@@ -41,8 +41,8 @@ type DbUser struct {
 
 func Connection() (*pgx.Conn, error) {
 	//urlExample := "postgres://postgres:45863@localhost:5432/test_db"
-	//urlExample := "postgres://postgres:45863@localhost:5432/postgres"
-	urlExample := "postgres://ngfw@localhost:5432/postgres"
+	urlExample := "postgres://postgres:45863@localhost:5432/postgres"
+	//urlExample := "postgres://ngfw@localhost:5432/postgres"
 	conn, err := pgx.Connect(context.Background(), urlExample)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -102,7 +102,7 @@ type CreateBoardRequest struct {
 }
 
 func СreateBoard(w http.ResponseWriter, r *http.Request) {
-	conn, err := CreqteConn()
+	conn, err := Connection()
 	//defer conn.Close(context.Background())
 
 	decoder := json.NewDecoder(r.Body)
@@ -148,7 +148,7 @@ type BoardCreated struct {
 }
 
 func BoardList(w http.ResponseWriter, r *http.Request) {
-	Connection()
+
 	conn, err := Connection()
 
 	rows, err := conn.Query(context.Background(), "SELECT id, title, columns FROM main.boards")
@@ -247,12 +247,12 @@ func DeleteBoard(w http.ResponseWriter, r *http.Request) {
 //}
 
 func UsersList(w http.ResponseWriter, r *http.Request) {
-	Connection()
+	ctx := r.Context()
 	conn, _ := Connection()
 
-	defer conn.Close(context.Background())
+	defer conn.Close(ctx)
 
-	rows, err := conn.Query(context.Background(), "SELECT id, display_name, login, password FROM main.users")
+	rows, err := conn.Query(ctx, "SELECT id, display_name, login, password FROM main.users")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
