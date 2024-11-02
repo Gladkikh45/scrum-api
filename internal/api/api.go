@@ -25,6 +25,11 @@ type GetBoardsResponse struct {
 	Boards []DbBoard `json:"boards"`
 }
 
+type GetCardsResponse struct {
+	Count int64    `json:"count"`
+	Cards []DbCard `json:"cards"`
+}
+
 type DbBoard struct {
 	Id        *string    `json:"id,omitempty"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
@@ -37,6 +42,17 @@ type DbUser struct {
 	DisplayName string `json:"display_name,omitempty"`
 	Login       string `json:"login,omitempty"`
 	Password    string `json:"password,omitempty"`
+}
+
+type DbCard struct {
+	Id          *string    `json:"id,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	Title       *string    `json:"title,omitempty"`
+	Board       *string    `json:"board,omitempty"`
+	Status      *string    `json:"status,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	Assignee    *string    `json:"assignee,omitempty"`
+	Estimation  *string    `json:"estimation,omitempty"`
 }
 
 func Connection() (*pgx.Conn, error) {
@@ -121,7 +137,6 @@ func СreateBoard(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(context.TODO())
 
-	fmt.Println(message.Title, message.Columns)
 	rows, err := tx.Query(context.Background(), sqlCreateReport, message.Title, message.Columns)
 	if err != nil {
 		JsonResponse(w, 500, err.Error())
@@ -297,16 +312,283 @@ func JsonResponse(w http.ResponseWriter, code int, resp any) {
 	_, _ = w.Write(response)
 }
 
-func CreateCard(w http.ResponseWriter, r *http.Request) {
-	Connection()
+const sqlCreateCard = `
+	INSERT INTO main.cards
+	(title, board, status, description, assignee, estimation)
+	VALUES
+	($1, $2, $3, $4, $5, $6)
+	RETURNING id
+`
+
+type CreateCardRequest struct {
+	Title       string `json:"title,omitempty"`
+	Board       string `json:"board,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Description string `json:"description,omitempty"`
+	Assignee    string `json:"assignee,omitempty"`
+	Estimation  string `json:"estimation,omitempty"`
+}
+
+type CardCreated struct {
+	Id *string `json:"id,omitempty"`
+}
+
+func СreateCard(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
 	conn, err := Connection()
-	defer conn.Close(context.Background())
+	defer conn.Close(ctx)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		fmt.Println("Error", err.Error())
 		os.Exit(1)
 	}
+
+	decoder := json.NewDecoder(r.Body)
+	var message CreateCardRequest
+
+	err = decoder.Decode(&message)
+	if err != nil {
+		JsonResponse(w, 400, err.Error())
+		return
+	}
+
+	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
+	if err != nil {
+		return
+	}
+
+	rows, err := tx.Query(ctx, sqlCreateCard, message.Title, message.Board, message.Status, message.Description, message.Assignee, message.Estimation)
+	if err != nil {
+		JsonResponse(w, 500, err.Error())
+		return
+	}
+
+	type CardCreated struct {
+		Id *string `json:"id,omitempty"`
+	}
+
+	card := CardCreated{}
+
+	for rows.Next() {
+		err = rows.Scan(
+			&card.Id,
+		)
+
+		if err != nil {
+			JsonResponse(w, 500, err.Error())
+		}
+	}
+	_ = tx.Commit(context.Background())
+	JsonResponse(w, 200, card)
+}
+
+const sqlUpdateCard = `
+	update main.cards
+   set title = coalesce($2, title), 
+       status = coalesce($3, status), 
+       description = coalesce($4, description), 
+       assignee = coalesce($5, assignee), 
+       estimation = coalesce($6, estimation), 
+       updated_at = now()
+   where id = $1
+
+	RETURNING id
+`
+
+// TODO: sql запрос
+
+type UpdateCardRequest struct {
+	Id          string `json:"id,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Description string `json:"description,omitempty"`
+	Assignee    string `json:"assignee,omitempty"`
+	Estimation  string `json:"estimation,omitempty"`
+}
+
+// TODO: здесь запрашивается то, что будет нужно для обновления
+//type CardUpdate struct {
+//	Id *string `json:"id,omitempty"`
+//}
+
+func UpdateCard(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := Connection()
+	defer conn.Close(ctx)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		fmt.Println("Error", err.Error())
+		os.Exit(1)
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var message UpdateCardRequest
+
+	err = decoder.Decode(&message)
+	if err != nil {
+		JsonResponse(w, 400, err.Error())
+		return
+	}
+
+	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
+	if err != nil {
+		return
+	}
+
+	rows, err := tx.Query(ctx, sqlUpdateCard, message.Id, message.Title, message.Status, message.Description, message.Assignee, message.Estimation)
+	if err != nil {
+		JsonResponse(w, 500, err.Error())
+		return
+	}
+
+	type CardUpdated struct {
+		Id *string `json:"id,omitempty"`
+	}
+
+	card := CardUpdated{}
+
+	for rows.Next() {
+		err = rows.Scan(
+			&card.Id,
+		)
+
+		if err != nil {
+			JsonResponse(w, 500, err.Error())
+		}
+	}
+	_ = tx.Commit(context.Background())
+	JsonResponse(w, 200, card)
+}
+
+const sqlDeleteCard = `
+	delete from main.cards
+	where id = $1
+	
+	returning id
+`
+
+type DeleteCardRequest struct {
+	Id string `json:"id,omitempty"`
+}
+
+func DeleteCard(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := Connection()
+	defer conn.Close(ctx)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		fmt.Println("Error", err.Error())
+		os.Exit(1)
+	}
+	decoder := json.NewDecoder(r.Body)
+	var message DeleteCardRequest
+
+	err = decoder.Decode(&message)
+	if err != nil {
+		JsonResponse(w, 400, err.Error())
+		return
+	}
+
+	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
+	if err != nil {
+		return
+	}
+
+	rows, err := tx.Query(ctx, sqlDeleteCard, message.Id)
+	if err != nil {
+		JsonResponse(w, 500, err.Error())
+		return
+	}
+
+	type CardDeleted struct {
+		Id *string `json:"id,omitempty"`
+	}
+
+	card := CardDeleted{}
+
+	for rows.Next() {
+		err = rows.Scan(
+			&card.Id,
+		)
+
+		if err != nil {
+			JsonResponse(w, 500, err.Error())
+		}
+	}
+	_ = tx.Commit(context.Background())
+	JsonResponse(w, 200, card)
+}
+
+const sqlReport = `
+	select * from
+	main.reports inner join main.cards
+	on main.reports.board=main.cards.board
+`
+
+// TODO: Почему используется именно констнанта?
+
+type ReportRequest struct {
+	Board    string `json:"board,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Assignee string `json:"assignee,omitempty"`
+}
+
+func Report(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := Connection()
+	defer conn.Close(ctx)
+
+	// TODO: Зачем здесь context.Background?
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		fmt.Println("Error", err.Error())
+		os.Exit(1)
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var message ReportRequest
+
+	err = decoder.Decode(&message)
+	if err != nil {
+		JsonResponse(w, 400, err.Error())
+		return
+	}
+
+	// TODO: Как работает этот синтаксис??
+
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return
+	}
+
+	rows, err := tx.Query(ctx, sqlReport)
+	if err != nil {
+		JsonResponse(w, 500, err.Error())
+		return
+	}
+
+	type ReportCreated struct {
+		Board string `json:"board,omitempty"`
+	}
+
+	report := ReportCreated{}
+
+	for rows.Next() {
+		err = rows.Scan(
+			&report.Board)
+
+		if err != nil {
+			JsonResponse(w, 500, err.Error())
+		}
+	}
+
+	_ = tx.Commit(context.Background())
+	JsonResponse(w, 200, report)
+
 }
 
 // SELECT * FROM public.users_table

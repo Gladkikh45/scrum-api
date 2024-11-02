@@ -51,6 +51,26 @@ func main() {
 		api.UsersList(w, r)
 	})
 
+	http.HandleFunc("/card/create", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		api.СreateCard(w, r)
+	})
+
+	http.HandleFunc("/card/update", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		api.UpdateCard(w, r)
+	})
+
+	http.HandleFunc("/card/delete", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		api.DeleteCard(w, r)
+	})
+
+	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		api.Report(w, r)
+	})
+
 	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte("{'status': 'ok'}"))

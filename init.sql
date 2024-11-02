@@ -26,9 +26,22 @@ create table if not exists main.cards
     id           uuid primary key     default gen_random_uuid(),
     created_at   timestamptz not null default now(),
     title varchar   not null,
+    board varchar   not null,
+    status         varchar  not null,
     description varchar,
-    board_id       uuid         references   main.boards (id),
-    status         varchar  not null                                -- нужно будет записавать статус колонки: "todo", "in_progress", "done"
-    -- TODO: Добавить все поля из ТЗ
+    assignee varchar,
+    estimation varchar,
+    updated_at timestamptz
+);
+
+create table if not exists main.reports
+(
+    id           uuid primary key     default gen_random_uuid(),
+    board       varchar      not null,
+    status      varchar[]    not null,
+    assignee    varchar      not null,
+    count       int          not null,
+    estimation  varchar      not null,
+    cards       varchar[]
 );
 
