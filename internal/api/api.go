@@ -49,6 +49,7 @@ type DbCard struct {
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 	Title       *string    `json:"title,omitempty"`
 	Board       *string    `json:"board,omitempty"`
+	BoardId     *string    `json:"BoardId,omitempty"`
 	Status      *string    `json:"status,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	Assignee    *string    `json:"assignee,omitempty"`
@@ -314,15 +315,16 @@ func JsonResponse(w http.ResponseWriter, code int, resp any) {
 
 const sqlCreateCard = `
 	INSERT INTO main.cards
-	(title, board, status, description, assignee, estimation)
+	(title, board, board_id, status, description, assignee, estimation)
 	VALUES
-	($1, $2, $3, $4, $5, $6)
+	($1, $2, $3, $4, $5, $6, $7)
 	RETURNING id
 `
 
 type CreateCardRequest struct {
 	Title       string `json:"title,omitempty"`
 	Board       string `json:"board,omitempty"`
+	BoardID     string `json:"boardID,omitempty"`
 	Status      string `json:"status,omitempty"`
 	Description string `json:"description,omitempty"`
 	Assignee    string `json:"assignee,omitempty"`
@@ -358,7 +360,7 @@ func СreateCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := tx.Query(ctx, sqlCreateCard, message.Title, message.Board, message.Status, message.Description, message.Assignee, message.Estimation)
+	rows, err := tx.Query(ctx, sqlCreateCard, message.Title, message.Board, message.BoardID, message.Status, message.Description, message.Assignee, message.Estimation)
 	if err != nil {
 		JsonResponse(w, 500, err.Error())
 		return
@@ -523,9 +525,14 @@ func DeleteCard(w http.ResponseWriter, r *http.Request) {
 }
 
 const sqlReport = `
-	select * from
-	main.reports inner join main.cards
-	on main.reports.board=main.cards.board
+	select cards.board,
+       cards.status,
+       cards.assignee,
+       cards.estimation,
+       cards.description
+from main.boards inner join main.cards
+                            on main.boards.id=main.cards.board_id
+	where cards.board = $1 and cards.status = $2 and cards.assignee = $3
 `
 
 // TODO: Почему используется именно констнанта?
@@ -565,26 +572,40 @@ func Report(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := tx.Query(ctx, sqlReport)
+	rows, err := tx.Query(ctx, sqlReport, message.Board, message.Status, message.Assignee)
 	if err != nil {
 		JsonResponse(w, 500, err.Error())
 		return
 	}
 
 	type ReportCreated struct {
-		Board string `json:"board,omitempty"`
+		Board       string `json:"board,omitempty"`
+		Status      string `json:"status,omitempty"`
+		Assignee    string `json:"assignee,omitempty"`
+		Estimation  string `json:"estimation,omitempty"`
+		Description string `json:"description,omitempty"`
 	}
 
 	report := ReportCreated{}
+	var count int
 
 	for rows.Next() {
 		err = rows.Scan(
-			&report.Board)
+			&report.Board,
+			&report.Status,
+			&report.Assignee,
+			&report.Estimation,
+			&report.Description,
+		)
+
+		fmt.Println(report)
+		count += 1
 
 		if err != nil {
 			JsonResponse(w, 500, err.Error())
 		}
 	}
+	fmt.Println(count)
 
 	_ = tx.Commit(context.Background())
 	JsonResponse(w, 200, report)

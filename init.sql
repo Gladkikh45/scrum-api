@@ -27,6 +27,7 @@ create table if not exists main.cards
     created_at   timestamptz not null default now(),
     title varchar   not null,
     board varchar   not null,
+    board_id uuid not null,
     status         varchar  not null,
     description varchar,
     assignee varchar,
