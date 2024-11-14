@@ -134,58 +134,58 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>559</line>
+          <line>620</line>
           <option name="timeStamp" value="23" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>569</line>
+          <line>629</line>
           <option name="timeStamp" value="24" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>574</line>
+          <line>634</line>
           <option name="timeStamp" value="25" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>591</line>
-          <option name="timeStamp" value="27" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>592</line>
+          <line>638</line>
           <option name="timeStamp" value="28" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>593</line>
-          <option name="timeStamp" value="29" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>594</line>
-          <option name="timeStamp" value="30" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>595</line>
-          <option name="timeStamp" value="31" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>597</line>
-          <option name="timeStamp" value="32" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>596</line>
-          <option name="timeStamp" value="33" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
-          <line>609</line>
+          <line>657</line>
           <option name="timeStamp" value="34" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
+          <line>651</line>
+          <option name="timeStamp" value="35" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
+          <line>655</line>
+          <option name="timeStamp" value="36" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
+          <line>563</line>
+          <option name="timeStamp" value="37" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
+          <line>568</line>
+          <option name="timeStamp" value="38" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
+          <line>570</line>
+          <option name="timeStamp" value="39" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/internal/api/api.go</url>
+          <line>581</line>
+          <option name="timeStamp" value="40" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
@@ -193,6 +193,14 @@
       <configuration name="GoApplicationRunConfiguration">
         <watch expression="*(*&quot;encoding/json.scanner&quot;)(824634131584)" />
         <watch expression="*(*&quot;net/http.body&quot;)(824634092160)" />
+        <watch expression="cardsJSON" />
+        <watch expression="*(*&quot;scrum/internal/api.ReportCreated·4&quot;)(824636121168)" />
+        <watch expression="report" />
+        <watch expression="*(*&quot;scrum/internal/api.ReportCreated·4&quot;)(824636121168)" />
+        <watch expression="*(*&quot;scrum/internal/api.ReportCreated·4&quot;)(824636121168)" />
+        <watch expression="*(*&quot;scrum/internal/api.ReportCardsCreated&quot;)(824635367528)" />
+        <watch expression="*(*&quot;scrum/internal/api.ReportCardsCreated&quot;)(824635367632)" />
+        <watch expression="*(*&quot;scrum/internal/api.ReportCardsCreated&quot;)(824635367736)" />
       </configuration>
     </watches-manager>
   </component>

@@ -524,6 +524,64 @@ func DeleteCard(w http.ResponseWriter, r *http.Request) {
 	JsonResponse(w, 200, card)
 }
 
+type ReportRequest struct {
+	Board    string `json:"board,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Assignee string `json:"assignee,omitempty"`
+}
+
+type ReportCardsCreated struct {
+	Title       string     `json:"title,omitempty"`
+	Board       string     `json:"board,omitempty"`
+	Status      string     `json:"status,omitempty"`
+	Assignee    string     `json:"assignee,omitempty"`
+	Estimation  string     `json:"estimation,omitempty"`
+	Description string     `json:"description,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+}
+
+const sqlReportCardsRequest = `
+	select cards.title,
+	       cards.board,
+	       cards.status,
+		   cards.assignee,
+		   cards.estimation,
+	       cards.description,
+	       cards.created_at
+from main.cards
+	where cards.board = $1 and cards.status = $2 and cards.assignee = $3
+`
+
+func ReportCards(ctx context.Context, board, status, assignee string) ([]ReportCardsCreated, error) {
+	conn, err := Connection()
+	defer conn.Close(ctx)
+
+	if err != nil {
+		fmt.Println("Error", err.Error())
+		os.Exit(1)
+	}
+
+	rows, err := conn.Query(ctx, sqlReportCardsRequest, board, status, assignee)
+	if err != nil {
+		return nil, err
+	}
+
+	reportcards := make([]ReportCardsCreated, 7)
+
+	for rows.Next() {
+		err = rows.Scan(
+			&reportcards[0].Title,
+			&reportcards[1].Board,
+			&reportcards[2].Status,
+			&reportcards[3].Assignee,
+			&reportcards[4].Estimation,
+			&reportcards[5].Description,
+			&reportcards[6].CreatedAt)
+	}
+
+	return reportcards, err
+}
+
 const sqlReport = `
 	select cards.board,
        cards.status,
@@ -535,16 +593,19 @@ from main.boards inner join main.cards
 	where cards.board = $1 and cards.status = $2 and cards.assignee = $3
 `
 
-// TODO: Почему используется именно констнанта?
-
-type ReportRequest struct {
-	Board    string `json:"board,omitempty"`
-	Status   string `json:"status,omitempty"`
-	Assignee string `json:"assignee,omitempty"`
+type ReportCreated struct {
+	Board       string               `json:"board,omitempty"`
+	Status      string               `json:"status,omitempty"`
+	Assignee    string               `json:"assignee,omitempty"`
+	Estimation  string               `json:"estimation,omitempty"`
+	Description string               `json:"description,omitempty"`
+	Cards       []ReportCardsCreated `json:"cards,omitempty"`
 }
 
+// TODO: Почему используется именно констнанта?
+
 func Report(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 	conn, err := Connection()
 	defer conn.Close(ctx)
 
@@ -559,53 +620,40 @@ func Report(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var message ReportRequest
 
-	err = decoder.Decode(&message)
-	if err != nil {
+	if err = decoder.Decode(&message); err != nil {
 		JsonResponse(w, 400, err.Error())
 		return
 	}
 
-	// TODO: Как работает этот синтаксис??
+	// TODO: Пользоваться конструкцией сверху с if если функция возвращает только ошибку
 
 	tx, err := conn.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return
 	}
 
-	rows, err := tx.Query(ctx, sqlReport, message.Board, message.Status, message.Assignee)
+	row := tx.QueryRow(ctx, sqlReport, message.Board, message.Status, message.Assignee)
+	//
+	report := ReportCreated{}
+
+	err = row.Scan(
+		&report.Board,
+		&report.Status,
+		&report.Assignee,
+		&report.Estimation,
+		&report.Description,
+	)
+
+	// TODO: У сards статус varchar, а у досок и репортов масив!
+
 	if err != nil {
 		JsonResponse(w, 500, err.Error())
-		return
 	}
-
-	type ReportCreated struct {
-		Board       string `json:"board,omitempty"`
-		Status      string `json:"status,omitempty"`
-		Assignee    string `json:"assignee,omitempty"`
-		Estimation  string `json:"estimation,omitempty"`
-		Description string `json:"description,omitempty"`
+	cards, err := ReportCards(ctx, message.Board, message.Status, message.Assignee)
+	if err != nil {
+		JsonResponse(w, 500, err.Error())
 	}
-
-	report := ReportCreated{}
-	var count int
-
-	for rows.Next() {
-		err = rows.Scan(
-			&report.Board,
-			&report.Status,
-			&report.Assignee,
-			&report.Estimation,
-			&report.Description,
-		)
-
-		fmt.Println(report)
-		count += 1
-
-		if err != nil {
-			JsonResponse(w, 500, err.Error())
-		}
-	}
-	fmt.Println(count)
+	report.Cards = cards
 
 	_ = tx.Commit(context.Background())
 	JsonResponse(w, 200, report)

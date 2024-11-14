@@ -28,21 +28,17 @@ create table if not exists main.cards
     title varchar   not null,
     board varchar   not null,
     board_id uuid not null,
-    status         varchar  not null,
+    status         main.board_statuses  not null,
     description varchar,
     assignee varchar,
     estimation varchar,
     updated_at timestamptz
 );
 
-create table if not exists main.reports
+create table if not exists main.board_statuses
 (
-    id           uuid primary key     default gen_random_uuid(),
-    board       varchar      not null,
-    status      varchar[]    not null,
-    assignee    varchar      not null,
-    count       int          not null,
-    estimation  varchar      not null,
-    cards       varchar[]
-);
+    status varchar not null unique
+)
+
+
 
