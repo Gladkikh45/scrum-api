@@ -566,17 +566,22 @@ func ReportCards(ctx context.Context, board, status, assignee string) ([]ReportC
 		return nil, err
 	}
 
-	reportcards := make([]ReportCardsCreated, 7)
+	reportcards := make([]ReportCardsCreated, 0)
 
 	for rows.Next() {
+		report := ReportCardsCreated{}
 		err = rows.Scan(
-			&reportcards[0].Title,
-			&reportcards[1].Board,
-			&reportcards[2].Status,
-			&reportcards[3].Assignee,
-			&reportcards[4].Estimation,
-			&reportcards[5].Description,
-			&reportcards[6].CreatedAt)
+			&report.Title,
+			&report.Board,
+			&report.Status,
+			&report.Assignee,
+			&report.Estimation,
+			&report.Description,
+			&report.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		reportcards = append(reportcards, report)
 	}
 
 	return reportcards, err
@@ -601,6 +606,21 @@ type ReportCreated struct {
 	Description string               `json:"description,omitempty"`
 	Cards       []ReportCardsCreated `json:"cards,omitempty"`
 }
+
+//func CreateCardsReport(ctx context.Context, board, status, assignee string) {
+//	conn, err := Connection()
+//	defer conn.Close(ctx)
+//
+//	if err != nil {
+//		fmt.Println("Error", err.Error())
+//		os.Exit(1)
+//	}
+//
+//rows, err := conn.Query(ctx, sqlReportCardsRequest, board, status, assignee)
+//if err != nil {
+//	fmt.Println("Error", err.Error())
+//}
+//}
 
 // TODO: Почему используется именно констнанта?
 
