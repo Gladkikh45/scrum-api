@@ -675,47 +675,102 @@ func Report(w http.ResponseWriter, r *http.Request) {
 	}
 	report.Cards = cards
 
+	//_ = tx.Commit(context.Background())
+	//JsonResponse(w, 200, report)
+
+	estimation, err := Estimation(ctx, message.Board, message.Status, message.Assignee)
+	if err != nil {
+		JsonResponse(w, 500, err.Error())
+	}
+	fmt.Println(estimation)
+
 	_ = tx.Commit(context.Background())
 	JsonResponse(w, 200, report)
-
 }
 
-// SELECT * FROM public.users_table
+type EstimationCreated struct {
+	Estimation string `json:"estimation,omitempty"`
+}
 
-// 	_, err = stmt.Exec()
-// INSERT INTO users (age, email, first_name, last_name)
-// VALUES (30, 'jon@calhoun.io', 'Jonathan', 'Calhoun');
-// insert into users_table (user_name, password) values ('moon', 'spell');
+const sqlEstimationRequest = `
+	select cards.estimation
+from main.cards
+	where cards.board = $1 and cards.status = $2 and cards.assignee = $3
+`
 
-// SELECT * FROM public.users_table
-// ORDER BY user_id ASC
+func Estimation(ctx context.Context, board, status, assignee string) ([]EstimationCreated, error) {
+	conn, err := Connection()
+	defer conn.Close(ctx)
 
-// func (c *Client) GetProducts(ctx context.Context, msg dbmsg.GetProducts) ([]dbmsg.Product, error) {
-// 	if err := c.conn(); err != nil {
-// 		return nil, err
-// 	}
+	if err != nil {
+		fmt.Println("Error", err.Error())
+		os.Exit(1)
+	}
+	rows, err := conn.Query(ctx, sqlEstimationRequest, board, status, assignee)
+	if err != nil {
+		return nil, err
+	}
 
-// 	rows, err := c.driver.QueryContext(ctx, sqlGetProducts)
-// 	if err != nil {
-// 		//var dbError sqlite3.Error
-// 		//if errors.As(err, &dbError) {
-// 		// fmt.Println(dbError)
-// 		//}
+	estimation := make([]EstimationCreated, 0)
 
-// 		return nil, err
-// 	}
+	for rows.Next() {
+		report := EstimationCreated{}
+		err = rows.Scan(
+			&report.Estimation)
+		if err != nil {
+			return nil, err
+		}
+		estimation = append(estimation, report)
+	}
+	estimationHours(estimation)
 
-// 	products := make([]dbmsg.Product, 0)
+	return estimation, err
+}
 
-// 	for rows.Next() {
-// 		p := dbmsg.Product{}
-// 		err := rows.Scan(&p.Id, &p.DisplayName, &p.Description)
-// 		if err != nil {
-// 			// TODO log
-// 			continue
-// 		}
-// 		products = append(products, p)
-// 	}
+func estimationHours(est []EstimationCreated) (a int) {
+	res := est[0]
+	fmt.Printf("T%", res)
+	return 1
+}
 
-// 	return products, nil
-// }
+//func test
+//
+//SELECT * FROM public.users_table
+//
+//	_, err = stmt.Exec()
+//INSERT INTO users (age, email, first_name, last_name)
+//VALUES (30, 'jon@calhoun.io', 'Jonathan', 'Calhoun');
+//insert into users_table (user_name, password) values ('moon', 'spell');
+//
+//SELECT * FROM public.users_table
+//ORDER BY user_id ASC
+//
+//func (c *Client) GetProducts(ctx context.Context, msg dbmsg.GetProducts) ([]dbmsg.Product, error) {
+//	if err := c.conn(); err != nil {
+//		return nil, err
+//	}
+//
+//	rows, err := c.driver.QueryContext(ctx, sqlGetProducts)
+//	if err != nil {
+//		//var dbError sqlite3.Error
+//		//if errors.As(err, &dbError) {
+//		// fmt.Println(dbError)
+//		//}
+//
+//		return nil, err
+//	}
+//
+//	products := make([]dbmsg.Product, 0)
+//
+//	for rows.Next() {
+//		p := dbmsg.Product{}
+//		err := rows.Scan(&p.Id, &p.DisplayName, &p.Description)
+//		if err != nil {
+//			// TODO log
+//			continue
+//		}
+//		products = append(products, p)
+//	}
+//
+//	return products, nil
+//}
