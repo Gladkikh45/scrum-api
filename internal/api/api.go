@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
-	"time"
-
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
 	//"os/user"
 	//"github.com/jackc/pgx/v5"
 	//_ "github.com/jackc/pgx/v5"
@@ -688,7 +688,7 @@ func Report(w http.ResponseWriter, r *http.Request) {
 	JsonResponse(w, 200, report)
 }
 
-type EstimationCreated struct {
+type EstimationCard struct {
 	Estimation string `json:"estimation,omitempty"`
 }
 
@@ -698,7 +698,7 @@ from main.cards
 	where cards.board = $1 and cards.status = $2 and cards.assignee = $3
 `
 
-func Estimation(ctx context.Context, board, status, assignee string) ([]EstimationCreated, error) {
+func Estimation(ctx context.Context, board, status, assignee string) ([]string, error) {
 	conn, err := Connection()
 	defer conn.Close(ctx)
 
@@ -706,31 +706,85 @@ func Estimation(ctx context.Context, board, status, assignee string) ([]Estimati
 		fmt.Println("Error", err.Error())
 		os.Exit(1)
 	}
+
 	rows, err := conn.Query(ctx, sqlEstimationRequest, board, status, assignee)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	estimation := make([]EstimationCreated, 0)
+	estimation := make([]string, 0)
 
 	for rows.Next() {
-		report := EstimationCreated{}
-		err = rows.Scan(
-			&report.Estimation)
+		var report string
+		err = rows.Scan(&report)
 		if err != nil {
+			fmt.Println(err)
 			return nil, err
 		}
 		estimation = append(estimation, report)
-	}
-	estimationHours(estimation)
 
+	}
+	hours := EstimationHours(estimation)
+	fmt.Println(hours)
 	return estimation, err
 }
 
-func estimationHours(est []EstimationCreated) (a int) {
-	res := est[0]
-	fmt.Printf("T%", res)
-	return 1
+func EstimationHours(est []string) string {
+	var allHours int
+	var resEst string
+
+	for _, element := range est {
+		switch element[1] {
+		case 'h':
+			stringHours := string(element[0])
+			hours, _ := strconv.Atoi(stringHours)
+			allHours += hours
+		case 'd':
+			stringDays := string(element[0])
+			days, _ := strconv.Atoi(stringDays)
+			allHours += days * 8
+		case 'w':
+			stringWeeks := string(element[0])
+			weeks, _ := strconv.Atoi(stringWeeks)
+			allHours += weeks * 40
+		case 'm':
+			stringMonths := string(element[0])
+			months, _ := strconv.Atoi(stringMonths)
+			allHours += months * 160
+		}
+	}
+
+	switch {
+	case allHours >= 160:
+		m := allHours / 160
+		resEst += strconv.Itoa(m) + "m"
+		allHours = allHours % 160
+		fallthrough
+	case allHours >= 40:
+		w := allHours / 40
+		if w != 0 {
+			resEst += strconv.Itoa(w) + "w"
+			allHours = allHours % 40
+		}
+		fallthrough
+	case allHours >= 8:
+		d := allHours / 8
+		if d != 0 {
+			resEst += strconv.Itoa(d) + "d"
+			allHours = allHours % 8
+		}
+		fallthrough
+	case allHours < 8 && allHours > 0:
+		if allHours != 0 {
+			resEst += strconv.Itoa(allHours) + "h"
+		}
+	}
+
+	return resEst
+	//TODO один день 8h, одна неделя 40h, один месяц 160h
+	//TODO если больше 160, делим на 160 и записываем целое число в month и т.д
+	//TODO strings.Index -1 от часов, дней, недель и месяцов. Месяц проверить на чётную строку для 9 и меньше и нечётную для 10, 11 и 12
 }
 
 //func test
